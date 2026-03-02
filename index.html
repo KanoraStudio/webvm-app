@@ -11,20 +11,19 @@
       #splash {
         position: fixed; inset: 0; display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        background: #0f172a; z-index: 9999; gap: 16px;
+        background: #0f172a; z-index: 9999; gap: 14px;
       }
-      #splash-title { font-size: 28px; font-weight: 800; color: #38bdf8; }
+      #splash-title { font-size: 32px; font-weight: 800; color: #38bdf8; }
       #splash-sub   { font-size: 14px; color: #475569; }
-      #splash-bar-wrap { width: 240px; height: 4px; background: #1e293b; border-radius: 99px; overflow: hidden; }
-      #splash-bar { height: 100%; width: 0%; background: #38bdf8; border-radius: 99px; transition: width 0.3s; }
-      #splash-err { font-size: 13px; color: #f87171; max-width: 400px; text-align: center; display: none; }
+      #splash-bar-wrap { width: 260px; height: 5px; background: #1e293b; border-radius: 99px; overflow: hidden; }
+      #splash-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#38bdf8,#818cf8); border-radius: 99px; transition: width 0.4s; }
+      #splash-err { font-size: 13px; color: #f87171; max-width: 420px; text-align: center; display: none; padding: 10px 16px; background: #1f0000; border: 1px solid #7f1d1d; border-radius: 8px; }
     </style>
-    <script type="module" crossorigin src="/webvm-app/assets/index-DrdVVaTs.js"></script>
+    <script type="module" crossorigin src="/webvm-app/assets/index-MdLDOktd.js"></script>
   </head>
   <body>
-    <!-- スプラッシュ画面（JS読み込み中に表示） -->
     <div id="splash">
-      <div style="font-size:48px">🖥️</div>
+      <div style="font-size:56px">🖥️</div>
       <div id="splash-title">WebVM</div>
       <div id="splash-sub">読み込み中...</div>
       <div id="splash-bar-wrap"><div id="splash-bar"></div></div>
@@ -36,92 +35,60 @@
     <script>
       var bar = document.getElementById('splash-bar')
       var sub = document.getElementById('splash-sub')
-      var err = document.getElementById('splash-err')
+      var errDiv = document.getElementById('splash-err')
 
-      function setProgress(pct, msg) {
-        bar.style.width = pct + '%'
-        sub.textContent = msg
+      function setP(pct, msg) { bar.style.width = pct + '%'; sub.textContent = msg }
+      function showErr(msg) { errDiv.style.display = 'block'; errDiv.textContent = '❌ ' + msg }
+      function hideSplash() { var el = document.getElementById('splash'); if (el) el.remove() }
+      window.__onAppMounted = function() { setP(100, '完了！'); setTimeout(hideSplash, 300) }
+
+      // Step1: coi-serviceworker (GitHub Pages で SharedArrayBuffer を有効化)
+      setP(10, 'coi-serviceworker を読み込み中...')
+      var coiUrls = [
+        'coi-serviceworker.js',
+        'https://cdn.jsdelivr.net/gh/gzuidhof/coi-serviceworker@master/coi-serviceworker.js'
+      ]
+      function loadCOI(i) {
+        if (i >= coiUrls.length) { loadV86(); return }
+        var s = document.createElement('script')
+        s.src = coiUrls[i]
+        s.onload = function() { setP(30, 'v86エンジンを読み込み中...'); loadV86() }
+        s.onerror = function() { loadCOI(i + 1) }
+        document.head.appendChild(s)
       }
 
-      function showError(msg) {
-        err.style.display = 'block'
-        err.textContent = '❌ ' + msg
-        sub.textContent = '以下のエラーが発生しました'
-      }
-
-      function hideSplash() {
-        var el = document.getElementById('splash')
-        if (el) el.remove()
-      }
-
-      setProgress(10, 'coi-serviceworker を読み込み中...')
-
-      // Step1: coi-serviceworker（GitHub Pages で SharedArrayBuffer を有効にする）
-      var sw = document.createElement('script')
-      sw.src = 'coi-serviceworker.js'
-      sw.onerror = function() {
-        // coi-sw がなくてもとりあえず続行（ローカル開発時はヘッダーで対応）
-        console.warn('coi-serviceworker.js not found, continuing...')
-        loadV86()
-      }
-      sw.onload = function() {
-        setProgress(30, 'v86 エンジンを読み込み中...')
-        loadV86()
-      }
-      document.head.appendChild(sw)
-
-      // Step2: libv86.js（v86エミュレーター本体）
-      var v86Loaded = false
-      function loadV86() {
-        var v = document.createElement('script')
-        v.src = 'v86/libv86.js'
-        v.onload = function() {
-          v86Loaded = true
+      // Step2: libv86.js (CDNから直接読み込む → Gitに含めない)
+      var v86Urls = [
+        'https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js',
+        'https://rawcdn.githack.com/copy/v86/master/build/libv86.js',
+        'v86/libv86.js'  // ローカルはフォールバック
+      ]
+      function loadV86(i) {
+        i = i || 0
+        if (i >= v86Urls.length) {
+          showErr('v86エンジンの読み込みに失敗しました。ネット接続を確認してください。')
+          loadReact()
+          return
+        }
+        setP(30 + i * 15, 'v86を読み込み中... (' + (i+1) + '/' + v86Urls.length + ')')
+        var s = document.createElement('script')
+        s.src = v86Urls[i]
+        s.onload = function() {
           window.__v86_loaded = true
-          setProgress(70, 'React アプリを起動中...')
+          setP(70, 'Reactアプリを起動中...')
           loadReact()
         }
-        v.onerror = function() {
-          showError('v86/libv86.js の読み込みに失敗しました。npm run setup を実行してください。')
-          // v86なしでもUIは表示する（エミュレーター機能は使えない）
-          window.__v86_loaded = false
-          setProgress(70, 'React アプリを起動中（v86なし）...')
-          loadReact()
-        }
-        document.head.appendChild(v)
+        s.onerror = function() { loadV86(i + 1) }
+        document.head.appendChild(s)
       }
 
-      // Step3: React アプリ本体
       function loadReact() {
-        // Vite がビルドした JS を動的に読む
-        // ビルド済みの場合は assets/ 配下に生成される
-        // 開発時は /src/main.tsx を直接読む
-        setProgress(90, 'アプリを初期化中...')
-        // main.tsx は type=module で読み込む（Vite/ESM用）
-        var m = document.createElement('script')
-        m.type = 'module'
-        m.src = 'src/main.tsx'
-        m.onerror = function() {
-          // 開発時パスが失敗 → ビルド済みを試みる（本番は Vite が書き換える）
-          console.log('dev path failed, app may already be injected by Vite')
-        }
-        document.head.appendChild(m)
-        // 3秒後もsplashが残っていたら非表示に
-        setTimeout(hideSplash, 3000)
+        setP(85, 'アプリを初期化中...')
+        setTimeout(hideSplash, 4000)
       }
 
-      // React がマウントしたらスプラッシュを消す
-      window.__onAppMounted = function() {
-        setProgress(100, '完了！')
-        setTimeout(hideSplash, 300)
-      }
-
-      // グローバルエラーハンドラー
-      window.addEventListener('error', function(e) {
-        console.error('Global error:', e.message)
-      })
+      loadCOI(0)
     </script>
 
-    <!-- Vite 開発サーバー / ビルド時はここに自動挿入される -->
   </body>
 </html>
