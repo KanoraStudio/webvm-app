@@ -1,0 +1,74 @@
+name: 自動ビルド & GitHub Pages 公開
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # GitHubの画面から手動実行もできる
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: ソースコードを取得
+        uses: actions/checkout@v4
+
+      - name: Node.js 20 をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── v86ファイルをGitHubサーバーでダウンロード ──────────────────
+      # ローカルでnpm run setupが失敗しても、ここで確実にDLされる
+      - name: v86・BIOSファイルをダウンロード
+        run: |
+          mkdir -p public/v86 public/bios
+
+          echo "📥 libv86.js..."
+          curl -fL --retry 3 \
+            "https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js" \
+            -o public/v86/libv86.js
+          echo "  → $(du -sh public/v86/libv86.js | cut -f1)"
+
+          echo "📥 v86.wasm..."
+          curl -fL --retry 3 \
+            "https://cdn.jsdelivr.net/gh/copy/v86@master/build/v86.wasm" \
+            -o public/v86/v86.wasm
+          echo "  → $(du -sh public/v86/v86.wasm | cut -f1)"
+
+          echo "📥 seabios.bin..."
+          curl -fL --retry 3 \
+            "https://raw.githubusercontent.com/copy/v86/master/bios/seabios.bin" \
+            -o public/bios/seabios.bin
+          echo "  → $(du -sh public/bios/seabios.bin | cut -f1)"
+
+          echo "📥 vgabios.bin..."
+          curl -fL --retry 3 \
+            "https://raw.githubusercontent.com/copy/v86/master/bios/vgabios.bin" \
+            -o public/bios/vgabios.bin
+          echo "  → $(du -sh public/bios/vgabios.bin | cut -f1)"
+
+          echo "📥 coi-serviceworker.js..."
+          curl -fL --retry 3 \
+            "https://cdn.jsdelivr.net/gh/gzuidhof/coi-serviceworker@master/coi-serviceworker.js" \
+            -o public/coi-serviceworker.js
+          echo "  → $(du -sh public/coi-serviceworker.js | cut -f1)"
+
+          echo ""
+          echo "✅ 全ファイルDL完了"
+          ls -lh public/v86/ public/bios/ public/coi-serviceworker.js
+
+      - name: npm install（セットアップスクリプトはスキップ）
+        run: npm install --ignore-scripts
+
+      - name: Viteでビルド
+        run: npm run build
+
+      - name: GitHub Pages に公開
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          force_orphan: true

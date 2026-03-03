@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.firebase/
+*.local
+.env
+
+# v86バイナリはCDNから読み込むためGitに含めない（CRLF破損防止）
+public/v86/libv86.js
+public/v86/v86.wasm
+public/bios/seabios.bin
+public/bios/vgabios.bin

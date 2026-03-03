@@ -1,0 +1,2 @@
+このフォルダのファイルはGitHub Actionsが自動ダウンロードします。
+ローカルでnpm run setupを実行するか、git pushするとGitHub Actionsが処理します。

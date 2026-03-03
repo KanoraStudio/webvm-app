@@ -1,0 +1,14 @@
+# バイナリファイルのCRLF変換を無効化（Windowsでの破損防止）
+*.wasm  binary
+*.bin   binary
+*.iso   binary
+*.wvm   binary
+
+# テキストファイルは通常通り
+*.js    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.json  text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.css   text eol=lf
